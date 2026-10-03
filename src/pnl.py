@@ -464,7 +464,6 @@ def calculate_portfolio_pnl(
         # ----------------------------------------------------
         # Baseline + quote validation
         # ----------------------------------------------------
-
         try:
 
             (
@@ -487,15 +486,98 @@ def calculate_portfolio_pnl(
                 <= baseline_date
             )
 
-            validate_current_quote(
-                pair=pair,
-                current_price=current_spot,
-                previous_close=previous_close,
-                quote_timestamp=quote_timestamp,
-                market_source=market_source,
-                valuation_timestamp=valuation_timestamp,
-                previous_close_date=previous_close_date,
+            # =================================================
+            # WEEKEND / MARKET-CLOSED HANDLING
+            #
+            # On Saturday/Sunday UTC, Yahoo may have no quote
+            # newer than Friday's completed daily close.
+            #
+            # Rather than marking the position unavailable,
+            # carry Friday's completed close forward as the
+            # current market mark.
+            #
+            # If Yahoo has already started publishing a newer
+            # Sunday quote after the FX market reopens, that
+            # newer quote is used normally instead.
+            # =================================================
+
+            is_weekend = (
+                valuation_timestamp.weekday()
+                >= 5
             )
+
+            quote_date = (
+                pd.Timestamp(
+                    quote_timestamp
+                ).date()
+            )
+
+            use_weekend_close = (
+                is_weekend
+                and quote_date
+                <= baseline_date
+            )
+
+            if use_weekend_close:
+
+                current_spot = float(
+                    previous_close
+                )
+
+                quote_timestamp = (
+                    pd.Timestamp(
+                        previous_close_date
+                    )
+                )
+
+                if (
+                    quote_timestamp.tzinfo
+                    is None
+                ):
+                    quote_timestamp = (
+                        quote_timestamp
+                        .tz_localize("UTC")
+                    )
+                else:
+                    quote_timestamp = (
+                        quote_timestamp
+                        .tz_convert("UTC")
+                    )
+
+                market_source = (
+                    "weekend_close"
+                )
+
+                quote_age = None
+
+                # Recalculate inception MTM using the
+                # Friday completed close rather than the
+                # last downloaded weekend observation.
+                current_mtm = (
+                    calculate_mtm_usd(
+                        pair=pair,
+                        side=trade["side"],
+                        notional_base=trade[
+                            "notional_base"
+                        ],
+                        entry_price=trade[
+                            "entry_price"
+                        ],
+                        current_price=current_spot,
+                    )
+                )
+
+            else:
+
+                validate_current_quote(
+                    pair=pair,
+                    current_price=current_spot,
+                    previous_close=previous_close,
+                    quote_timestamp=quote_timestamp,
+                    market_source=market_source,
+                    valuation_timestamp=valuation_timestamp,
+                    previous_close_date=previous_close_date,
+                )
 
             # ------------------------------------------------
             # Previous MTM

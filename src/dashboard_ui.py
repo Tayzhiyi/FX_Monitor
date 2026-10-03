@@ -126,7 +126,6 @@ def format_usd(
 
     return text
 
-
 def get_quote_status(row):
 
     if (
@@ -134,6 +133,12 @@ def get_quote_status(row):
         != "OK"
     ):
         return "UNAVAILABLE"
+
+    if (
+        row["market_source"]
+        == "weekend_close"
+    ):
+        return "MARKET CLOSED"
 
     if (
         row["market_source"]
@@ -387,11 +392,12 @@ def build_position_grid_records(
 
     status_rank = {
         "LIVE": 0,
-        "DAILY FALLBACK": 1,
-        "DELAYED": 2,
-        "STALE": 3,
-        "UNKNOWN": 4,
-        "UNAVAILABLE": 5,
+        "MARKET CLOSED": 1,
+        "DAILY FALLBACK": 2,
+        "DELAYED": 3,
+        "STALE": 4,
+        "UNKNOWN": 5,
+        "UNAVAILABLE": 6,
     }
 
     output = []
@@ -1327,6 +1333,14 @@ STATUS_CELL_STYLE = {
                 "fontWeight": "700",
             },
         },
+        {
+            "condition":
+                "params.value === 'MARKET CLOSED'",
+            "style": {
+                "color": "#94a3b8",
+                "fontWeight": "700",
+            },
+        },
     ],
 }
 
@@ -1635,6 +1649,12 @@ def build_data_quality_banner(
             0,
         )
     )
+    market_closed_count = (
+        status_counts.get(
+            "MARKET CLOSED",
+            0,
+        )
+    )
 
     total_count = len(
         position_table
@@ -1645,6 +1665,12 @@ def build_data_quality_banner(
         f"{delayed_count} DELAYED, "
         f"{stale_count} STALE"
     )
+
+    if market_closed_count > 0:
+        status_text += (
+            f", {market_closed_count} "
+            f"MARKET CLOSED"
+        )
 
     if fallback_count > 0:
         status_text += (
@@ -1692,6 +1718,7 @@ def build_data_quality_banner(
         stale_count > 0
         or delayed_count > 0
         or fallback_count > 0
+        or market_closed_count > 0
     ):
         return (
             (
