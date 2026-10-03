@@ -82,6 +82,8 @@ A `STALE` quote can still be used if it is no more than **24 hours old** and pas
 
 Quotes are also rejected if they are invalid, materially ahead of the valuation timestamp, not newer than the previous-close baseline, or more than 20% away from the previous completed close.
 
+During UTC weekends, if no quote newer than Friday's completed close is available, the dashboard carries Friday's close forward as the current mark. The position is labelled `MARKET CLOSED`, and Daily P&L is zero against that same close until a newer quote becomes available. Inception P&L continues to reflect the position's mark relative to its entry price.
+
 Historical daily bars are treated as UTC-day bars. A generic Monday-Friday business-day calendar is used; pair-specific holidays are not modelled.
 
 ### VaR and risk
